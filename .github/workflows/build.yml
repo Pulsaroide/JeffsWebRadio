@@ -47,22 +47,32 @@ jobs:
             https://github.com/earlephilhower/ESP8266Audio.git \
             ~/Arduino/libraries/ESP8266Audio
 
-      # ── 7. Compile le firmware ───────────────────────────
+      # ── 7. Détecte le nom exact du fichier .ino ──────────
+      - name: Find sketch file
+        run: |
+          SKETCH=$(find . -maxdepth 1 -name "*.ino" | head -1)
+          echo "Found sketch: $SKETCH"
+          echo "SKETCH=$SKETCH" >> $GITHUB_ENV
+
+      # ── 8. Compile le firmware ───────────────────────────
       - name: Compile firmware
         run: |
           mkdir -p build
           arduino-cli compile \
             --fqbn esp32:esp32:m5stack_cardputer \
             --output-dir ./build \
-            JeffsWebRadio.ino
+            ${{ env.SKETCH }}
 
-      # ── 8. Renomme le .bin proprement ───────────────────
+      # ── 9. Renomme le .bin proprement ───────────────────
       - name: Rename output
         run: |
-          cp ./build/JeffsWebRadio.ino.bin ./build/JeffsWebRadio-v1.0.bin || \
-          cp ./build/*.bin ./build/JeffsWebRadio-v1.0.bin
+          find ./build -name "*.bin" ! -name "*.partitions.bin" \
+            ! -name "*bootloader*" | head -1 | \
+            xargs -I{} cp {} ./build/JeffsWebRadio-v1.0.bin
+          echo "Files in build:"
+          ls -la ./build/
 
-      # ── 9. Upload le .bin comme artifact téléchargeable ─
+      # ── 10. Upload le .bin comme artifact ────────────────
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
