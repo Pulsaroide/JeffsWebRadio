@@ -23,14 +23,16 @@ jobs:
           arduino-cli config add board_manager.additional_urls \
             https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
 
+      # ── Installe la dernière version ESP32 ──────────────
       - name: Install ESP32 platform
         run: |
           arduino-cli core update-index
-          arduino-cli core install esp32:esp32@2.0.17
+          arduino-cli core install esp32:esp32
 
-      # ── Liste toutes les cartes M5Stack disponibles ──────
+      # ── Vérifie que le Cardputer est bien présent ───────
       - name: List M5Stack boards
         run: |
+          arduino-cli board listall | grep -i cardputer || \
           arduino-cli board listall | grep -i m5stack
 
       - name: Install libraries
@@ -52,11 +54,14 @@ jobs:
           echo "Found sketch: $SKETCH"
           echo "SKETCH=$SKETCH" >> $GITHUB_ENV
 
+      # ── Compile avec ESP32S3 Dev Module (compatible Cardputer ADV) ──
       - name: Compile firmware
         run: |
           mkdir -p build
           arduino-cli compile \
-            --fqbn esp32:esp32:m5stack-cardputer \
+            --fqbn esp32:esp32:esp32s3 \
+            --build-property "build.flash_size=8MB" \
+            --build-property "build.partitions=default_8MB" \
             --output-dir ./build \
             ${{ env.SKETCH }}
 
