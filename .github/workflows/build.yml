@@ -1,0 +1,71 @@
+name: Build JeffsWebRadio .bin
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # permet de lancer manuellement
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ── 1. Récupère le code ──────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 2. Installe Arduino CLI ──────────────────────────
+      - name: Install Arduino CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      # ── 3. Configure Arduino CLI ─────────────────────────
+      - name: Configure Arduino CLI
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls \
+            https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+
+      # ── 4. Installe le support ESP32 ────────────────────
+      - name: Install ESP32 platform
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@2.0.17
+
+      # ── 5. Installe les bibliothèques ───────────────────
+      - name: Install libraries
+        run: |
+          arduino-cli lib install "M5Cardputer"
+          arduino-cli lib install "WiFiManager"
+          arduino-cli lib install "ArduinoJson"
+
+      # ── 6. Installe ESP8266Audio depuis GitHub ──────────
+      - name: Install ESP8266Audio
+        run: |
+          mkdir -p $HOME/Arduino/libraries
+          cd $HOME/Arduino/libraries
+          git clone --depth=1 https://github.com/earlephilhower/ESP8266Audio.git
+
+      # ── 7. Compile le firmware ───────────────────────────
+      - name: Compile firmware
+        run: |
+          arduino-cli compile \
+            --fqbn esp32:esp32:m5stack_cardputer \
+            --output-dir ./build \
+            --export-binaries \
+            JeffsWebRadio/JeffsWebRadio.ino
+
+      # ── 8. Renomme le .bin proprement ───────────────────
+      - name: Rename output
+        run: |
+          cp ./build/JeffsWebRadio.ino.bin ./build/JeffsWebRadio-v1.0.bin
+
+      # ── 9. Upload le .bin comme artifact téléchargeable ─
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JeffsWebRadio-firmware
+          path: ./build/JeffsWebRadio-v1.0.bin
+          retention-days: 30
